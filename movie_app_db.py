@@ -152,7 +152,7 @@ def login_page():
     with col2:
         st.markdown("<br><br><br>", unsafe_allow_html=True)
         st.markdown("<h1 style='text-align:center;color:#0fa;text-shadow:0 0 10px #0fa'>欢迎回来，准备好今天的备份了吗？</h1>", unsafe_allow_html=True)
-        pwd = st.text_input("", type="猜猜是多少", placeholder="PASSWORD", label_visibility="collapsed")
+        pwd = st.text_input("", type="PASSWORD", placeholder="猜猜是多少", label_visibility="collapsed")
         if st.button("点我") or pwd == "li47521":
             if pwd == "li147521":
                 st.session_state['logged_in'] = True
