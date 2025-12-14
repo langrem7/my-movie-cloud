@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import time
 import gspread
-import random # 引入随机库
+import random
 from google.oauth2.service_account import Credentials
 
 # --- 1. 🧠 智能网络配置 ---
@@ -16,57 +16,43 @@ if st.secrets.get("is_local"):
 def inject_custom_css():
     st.markdown("""
     <style>
-        /* 定义 CSS 变量，默认颜色为青色，会被 Python 动态覆盖 */
-        :root {
-            --neon-color: #0fa;
-        }
+        :root { --neon-color: #0fa; }
 
-        /* 1. 霓虹灯标题动画 (使用变量 var(--neon-color)) */
+        /* 霓虹灯标题动画 */
         @keyframes neon-flicker {
             0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
-                text-shadow:
-                    0 0 4px #fff,
-                    0 0 10px #fff,
-                    0 0 20px var(--neon-color),
-                    0 0 40px var(--neon-color),
-                    0 0 80px var(--neon-color);
+                text-shadow: 0 0 4px #fff, 0 0 10px #fff, 0 0 20px var(--neon-color), 0 0 40px var(--neon-color);
                 color: #fff;
             }
-            20%, 24%, 55% {
-                text-shadow: none;
-                color: rgba(255,255,255,0.1);
-            }
+            20%, 24%, 55% { text-shadow: none; color: rgba(255,255,255,0.1); }
+        }
+
+        /* 入场动画 */
+        @keyframes slide-up {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
         }
 
         .neon-title {
             font-family: 'Courier New', Courier, monospace;
-            /* 应用动画 */
             animation: neon-flicker 3s infinite alternate;
             font-size: 1.6em;
             font-weight: bold;
             margin-bottom: 5px;
-            /* 基础颜色设为变量 */
             color: var(--neon-color);
         }
 
-        /* 2. 数字评分样式 (替代星星) */
         .score-badge {
             font-family: 'Impact', sans-serif;
             font-size: 2.2em;
-            /* 分数颜色统一用霓虹黄，突出显示 */
             color: #FFD700; 
             text-shadow: 0 0 10px #FFD700;
             margin-right: 5px;
             line-height: 1em;
         }
         
-        .score-suffix {
-            color: #888;
-            font-size: 0.9em;
-            font-weight: normal;
-        }
+        .score-suffix { color: #888; font-size: 0.9em; }
 
-        /* 3. 卡片样式 */
         .movie-card {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
@@ -75,16 +61,20 @@ def inject_custom_css():
             border: 1px solid rgba(255, 255, 255, 0.1);
             transition: transform 0.3s;
             margin-bottom: 20px;
+            /* 应用入场动画 */
+            animation: slide-up 0.6s ease-out;
         }
         .movie-card:hover {
-            transform: translateY(-3px);
+            transform: translateY(-3px) scale(1.01);
             background: rgba(255, 255, 255, 0.08);
             border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
         
-        /* Slider 美化 */
-        div[data-baseweb="slider"] div {
-            background-color: #0fa !important;
+        /* 针对输入框的美化 */
+        input[type="number"] {
+            font-weight: bold;
+            color: #0fa;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -176,7 +166,6 @@ def login_page():
 def main_app():
     inject_custom_css()
     
-    # 强制深色背景
     st.markdown("""
     <style>
         .stApp {background-color: #050505; color: #fff;}
@@ -186,17 +175,7 @@ def main_app():
 
     df = view_all_movies()
     tags_options = get_available_tags(df)
-
-    # 🎨 定义赛博朋克霓虹色盘 (避免出现难看的暗色)
-    NEON_PALETTE = [
-        "#0fa",   # 青柠绿
-        "#f0f",   # 骚粉色
-        "#0ff",   # 赛博蓝
-        "#ff0055",# 霓虹红
-        "#ccff00",# 电光黄
-        "#bd00ff",# 紫罗兰
-        "#00ccff" # 天空蓝
-    ]
+    NEON_PALETTE = ["#0fa", "#f0f", "#0ff", "#ff0055", "#ccff00", "#bd00ff", "#00ccff"]
 
     # === 侧边栏 ===
     with st.sidebar:
@@ -217,10 +196,9 @@ def main_app():
             t = st.text_input("片名")
             p = st.text_input("海报URL")
             
-            # 🔥 修改点：使用支持小数的 Slider
-            st.write("评分 (0.0 - 10.0):")
-            # step=0.1 表示支持一位小数
-            r = st.slider("", 0.0, 10.0, 8.0, step=0.1, label_visibility="collapsed")
+            # 🔥 更改点：使用 number_input 输入框
+            # min_value=0.0, max_value=10.0 限制范围
+            r = st.number_input("评分 (0-10)", min_value=0.0, max_value=10.0, value=8.5, step=0.1)
             
             tag = st.multiselect("类型", tags_options, default=["剧情"])
             rev = st.text_area("短评")
@@ -245,19 +223,13 @@ def main_app():
                 try: st.image(row['poster_url'])
                 except: st.write("No Image")
             with c2:
-                # 🎲 随机选择一个霓虹色
-                # 使用 index 作为随机种子，保证刷新页面时颜色不会乱跳，但每部电影颜色不同
                 random.seed(idx) 
                 this_neon_color = random.choice(NEON_PALETTE)
+                try: score = float(row['rating'])
+                except: score = 0.0
                 
-                # 获取评分 (转为 float)
-                try:
-                    score = float(row['rating'])
-                except:
-                    score = 0.0
-                
-                # 渲染卡片
-                # 注意 style="--neon-color: {this_neon_color}"，这会将随机颜色传给 CSS
+                # 🔥 关键修复点：unsafe_allow_html=True
+                # 如果这个参数没设为True，你看到的就是代码
                 st.markdown(f"""
                 <div class="movie-card">
                     <div class="neon-title" style="--neon-color: {this_neon_color};">
@@ -277,17 +249,15 @@ def main_app():
                         “{row['review']}”
                     </div>
                 </div>
-                """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True) # <--- 这里必须是 True
                 
                 # 编辑区域
                 with st.expander(f"🛠 编辑: {row['title']}"):
                     n_rev = st.text_area("Update Review", row['review'], key=f"rv{idx}")
                     
-                    st.write("Update Score:")
-                    # 编辑时也支持小数
-                    n_rat = st.slider("", 0.0, 10.0, score, step=0.1, key=f"sl{idx}")
+                    # 编辑区域也改为输入框
+                    n_rat = st.number_input("Update Score", 0.0, 10.0, score, step=0.1, key=f"sl{idx}")
                     
-                    # 标签
                     curr_tags = str(row['tags']).split(',') if row['tags'] else []
                     curr_tags = [x.strip() for x in curr_tags if x.strip() in tags_options]
                     n_tags = st.multiselect("Tags", tags_options, default=curr_tags, key=f"tg{idx}")
@@ -297,11 +267,4 @@ def main_app():
                         update_movie_in_db(idx, n_rev, n_rat, ",".join(n_tags))
                         st.rerun()
                     if c_del.button("DELETE", key=f"d{idx}", type="primary"):
-                        delete_movie_from_db(idx)
-                        st.rerun()
-            st.divider()
-
-if not st.session_state['logged_in']:
-    login_page()
-else:
-    main_app()
+                        delete_
