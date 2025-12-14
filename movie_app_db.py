@@ -152,10 +152,10 @@ def login_page():
     col1, col2, col3 = st.columns([1,1,1])
     with col2:
         st.markdown("<br><br><br>", unsafe_allow_html=True)
-        st.markdown("<h1 style='text-align:center;color:#0fa;text-shadow:0 0 10px #0fa'>SYSTEM ACCESS</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align:center;color:#0fa;text-shadow:0 0 10px #0fa'>欢迎回来，等你好久了</h1>", unsafe_allow_html=True)
         pwd = st.text_input("", type="password", placeholder="PASSWORD", label_visibility="collapsed")
-        if st.button("LOGIN") or pwd == "123":
-            if pwd == "123":
+        if st.button("LOGIN") or pwd == "li147521":
+            if pwd == "li147521":
                 st.session_state['logged_in'] = True
                 st.rerun()
 
@@ -177,7 +177,7 @@ def main_app():
 
     # === 侧边栏 ===
     with st.sidebar:
-        st.caption("🟢 SYSTEM ONLINE")
+        st.caption("🟢 在线中")
         if st.button("LOGOUT"):
             st.session_state['logged_in'] = False
             st.rerun()
@@ -212,7 +212,7 @@ def main_app():
                     st.rerun()
 
     # === 主界面 ===
-    st.title("🌃 Cyberpunk Movie Log")
+    st.title("🌃  langren7的观影库")
 
     if df.empty:
         st.info("数据库为空...")
