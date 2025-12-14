@@ -8,7 +8,7 @@ from google.oauth2.service_account import Credentials
 
 # --- 1. 🧠 智能网络配置 ---
 if st.secrets.get("is_local"):
-    PROXY_PORT = "7890"  # 请确认你的端口
+    PROXY_PORT = "7890" 
     os.environ["http_proxy"] = f"http://127.0.0.1:{PROXY_PORT}"
     os.environ["https_proxy"] = f"http://127.0.0.1:{PROXY_PORT}"
 
@@ -17,7 +17,7 @@ def inject_custom_css():
     st.markdown("""
     <style>
         :root { --neon-color: #0fa; }
-
+        
         /* 霓虹灯标题动画 */
         @keyframes neon-flicker {
             0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
@@ -80,7 +80,6 @@ def inject_custom_css():
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
         
-        /* 输入框美化 */
         input[type="number"] {
             font-weight: bold;
             color: #0fa;
@@ -215,7 +214,7 @@ def main_app():
         with st.form("add"):
             t = st.text_input("片名")
             p = st.text_input("海报URL")
-            # ✅ 确认：使用数字输入，非滑块
+            # 确认：使用数字输入
             r = st.number_input("评分 (0.0-10.0)", min_value=0.0, max_value=10.0, value=8.5, step=0.1)
             tag = st.multiselect("类型", tags_options, default=["剧情"])
             rev = st.text_area("短评")
@@ -245,9 +244,9 @@ def main_app():
                 try: score = float(row['rating'])
                 except: score = 0.0
                 
-                # 🔥 关键修复：这里的 unsafe_allow_html=True 绝对不能少
-                # 之前可能复制时漏掉了，导致HTML直接显示为文字
-                st.markdown(f"""
+                # 🔥 终极修复：把 HTML 先存进变量，再渲染
+                # 这样可以防止 Python 的括号嵌套混乱导致参数失效
+                card_html = f"""
                 <div class="movie-card">
                     <div class="neon-title" style="--neon-color: {this_neon_color};">
                         {row['title']}
@@ -266,12 +265,14 @@ def main_app():
                         “{row['review']}”
                     </div>
                 </div>
-                """, unsafe_allow_html=True) # <--- 这个 True 是显示图片的关键！
+                """
+                
+                # 单独执行渲染，确保 unsafe_allow_html 生效
+                st.markdown(card_html, unsafe_allow_html=True)
                 
                 # 编辑区域
                 with st.expander(f"🛠 编辑: {row['title']}"):
                     n_rev = st.text_area("Update Review", row['review'], key=f"rv{idx}")
-                    # 编辑区也使用数字输入
                     n_rat = st.number_input("Update Score", 0.0, 10.0, score, step=0.1, key=f"sl{idx}")
                     curr_tags = str(row['tags']).split(',') if row['tags'] else []
                     curr_tags = [x.strip() for x in curr_tags if x.strip() in tags_options]
