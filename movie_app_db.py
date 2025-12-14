@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import time
 import gspread
+import random # 引入随机库
 from google.oauth2.service_account import Credentials
 
 # --- 1. 🧠 智能网络配置 ---
@@ -15,49 +16,57 @@ if st.secrets.get("is_local"):
 def inject_custom_css():
     st.markdown("""
     <style>
-        /* 1. 霓虹灯标题动画 */
+        /* 定义 CSS 变量，默认颜色为青色，会被 Python 动态覆盖 */
+        :root {
+            --neon-color: #0fa;
+        }
+
+        /* 1. 霓虹灯标题动画 (使用变量 var(--neon-color)) */
         @keyframes neon-flicker {
             0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
                 text-shadow:
                     0 0 4px #fff,
-                    0 0 11px #fff,
-                    0 0 19px #fff,
-                    0 0 40px #0fa,
-                    0 0 80px #0fa,
-                    0 0 90px #0fa,
-                    0 0 100px #0fa,
-                    0 0 150px #0fa;
+                    0 0 10px #fff,
+                    0 0 20px var(--neon-color),
+                    0 0 40px var(--neon-color),
+                    0 0 80px var(--neon-color);
                 color: #fff;
             }
             20%, 24%, 55% {
                 text-shadow: none;
-                color: rgba(255,255,255,0.2);
+                color: rgba(255,255,255,0.1);
             }
-        }
-
-        /* 2. 星星闪烁动画 */
-        @keyframes star-twinkle {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(1.1); }
-            100% { opacity: 1; transform: scale(1); }
         }
 
         .neon-title {
             font-family: 'Courier New', Courier, monospace;
-            animation: neon-flicker 2.5s infinite alternate;
-            font-size: 1.5em;
+            /* 应用动画 */
+            animation: neon-flicker 3s infinite alternate;
+            font-size: 1.6em;
             font-weight: bold;
+            margin-bottom: 5px;
+            /* 基础颜色设为变量 */
+            color: var(--neon-color);
         }
 
-        .twinkle-star {
-            display: inline-block;
-            animation: star-twinkle 1.5s infinite ease-in-out;
+        /* 2. 数字评分样式 (替代星星) */
+        .score-badge {
+            font-family: 'Impact', sans-serif;
+            font-size: 2.2em;
+            /* 分数颜色统一用霓虹黄，突出显示 */
             color: #FFD700; 
-            font-size: 1.0em; /*稍微调小一点，防止10颗星换行*/
-            letter-spacing: 2px;
-            white-space: nowrap; /* 强制星星不换行 */
+            text-shadow: 0 0 10px #FFD700;
+            margin-right: 5px;
+            line-height: 1em;
+        }
+        
+        .score-suffix {
+            color: #888;
+            font-size: 0.9em;
+            font-weight: normal;
         }
 
+        /* 3. 卡片样式 */
         .movie-card {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
@@ -65,13 +74,15 @@ def inject_custom_css():
             padding: 20px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             transition: transform 0.3s;
+            margin-bottom: 20px;
         }
         .movie-card:hover {
-            transform: translateY(-5px);
-            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.3);
         }
         
-        /* 3. 美化 Slider 滑动条 */
+        /* Slider 美化 */
         div[data-baseweb="slider"] div {
             background-color: #0fa !important;
         }
@@ -156,8 +167,8 @@ def login_page():
         st.markdown("<br><br><br>", unsafe_allow_html=True)
         st.markdown("<h1 style='text-align:center;color:#0fa;text-shadow:0 0 10px #0fa'>SYSTEM ACCESS</h1>", unsafe_allow_html=True)
         pwd = st.text_input("", type="password", placeholder="PASSWORD", label_visibility="collapsed")
-        if st.button("LOGIN") or pwd == "li147521":
-            if pwd == "li147521":
+        if st.button("LOGIN") or pwd == "123":
+            if pwd == "123":
                 st.session_state['logged_in'] = True
                 st.rerun()
 
@@ -165,6 +176,7 @@ def login_page():
 def main_app():
     inject_custom_css()
     
+    # 强制深色背景
     st.markdown("""
     <style>
         .stApp {background-color: #050505; color: #fff;}
@@ -174,6 +186,17 @@ def main_app():
 
     df = view_all_movies()
     tags_options = get_available_tags(df)
+
+    # 🎨 定义赛博朋克霓虹色盘 (避免出现难看的暗色)
+    NEON_PALETTE = [
+        "#0fa",   # 青柠绿
+        "#f0f",   # 骚粉色
+        "#0ff",   # 赛博蓝
+        "#ff0055",# 霓虹红
+        "#ccff00",# 电光黄
+        "#bd00ff",# 紫罗兰
+        "#00ccff" # 天空蓝
+    ]
 
     # === 侧边栏 ===
     with st.sidebar:
@@ -194,9 +217,10 @@ def main_app():
             t = st.text_input("片名")
             p = st.text_input("海报URL")
             
-            # 🔥 修改点：使用 Slider 实现 1-10 分
-            st.write("评分 (10分制):")
-            r = st.slider("", 1, 10, 8, label_visibility="collapsed")
+            # 🔥 修改点：使用支持小数的 Slider
+            st.write("评分 (0.0 - 10.0):")
+            # step=0.1 表示支持一位小数
+            r = st.slider("", 0.0, 10.0, 8.0, step=0.1, label_visibility="collapsed")
             
             tag = st.multiselect("类型", tags_options, default=["剧情"])
             rev = st.text_area("短评")
@@ -221,26 +245,37 @@ def main_app():
                 try: st.image(row['poster_url'])
                 except: st.write("No Image")
             with c2:
-                # 获取评分
-                try:
-                    star_count = int(row['rating'])
-                except:
-                    star_count = 5 # 出错兜底
+                # 🎲 随机选择一个霓虹色
+                # 使用 index 作为随机种子，保证刷新页面时颜色不会乱跳，但每部电影颜色不同
+                random.seed(idx) 
+                this_neon_color = random.choice(NEON_PALETTE)
                 
-                # 生成 10 颗星星的 HTML
-                # 如果是满分10分，显示10个星；如果是8分，就显示8个
-                stars_html = f'<span class="twinkle-star">{"★" * star_count}</span> <span style="font-size:0.8em;color:#666">/10</span>'
+                # 获取评分 (转为 float)
+                try:
+                    score = float(row['rating'])
+                except:
+                    score = 0.0
                 
                 # 渲染卡片
+                # 注意 style="--neon-color: {this_neon_color}"，这会将随机颜色传给 CSS
                 st.markdown(f"""
                 <div class="movie-card">
-                    <div class="neon-title">{row['title']}</div>
-                    <div style="margin-top:5px; color:#aaa; font-size:0.8em">{row['created_at']}</div>
-                    <div style="margin: 10px 0;">{stars_html}</div>
-                    <div style="background:rgba(0,0,0,0.3); padding:10px; border-radius:10px; border-left: 3px solid #0fa;">
+                    <div class="neon-title" style="--neon-color: {this_neon_color};">
+                        {row['title']}
+                    </div>
+                    
+                    <div style="display: flex; align-items: baseline; margin: 10px 0;">
+                        <span class="score-badge">{score}</span>
+                        <span class="score-suffix">/ 10</span>
+                    </div>
+
+                    <div style="color:#aaa; font-size:0.8em; margin-bottom: 8px;">
+                        📅 {row['created_at']} | 🏷️ {row['tags']}
+                    </div>
+
+                    <div style="background:rgba(0,0,0,0.3); padding:10px; border-radius:10px; border-left: 3px solid {this_neon_color}; color: #ddd;">
                         “{row['review']}”
                     </div>
-                    <div style="margin-top:10px;">🏷️ {row['tags']}</div>
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -248,9 +283,9 @@ def main_app():
                 with st.expander(f"🛠 编辑: {row['title']}"):
                     n_rev = st.text_area("Update Review", row['review'], key=f"rv{idx}")
                     
-                    st.write("Update Rating (1-10):")
-                    # 编辑时也用 Slider，范围 1-10
-                    n_rat = st.slider("", 1, 10, star_count, key=f"sl{idx}")
+                    st.write("Update Score:")
+                    # 编辑时也支持小数
+                    n_rat = st.slider("", 0.0, 10.0, score, step=0.1, key=f"sl{idx}")
                     
                     # 标签
                     curr_tags = str(row['tags']).split(',') if row['tags'] else []
@@ -261,7 +296,7 @@ def main_app():
                     if c_save.button("SAVE", key=f"s{idx}"):
                         update_movie_in_db(idx, n_rev, n_rat, ",".join(n_tags))
                         st.rerun()
-                    if c_del.button("DELETE", key=f"d{idx}"):
+                    if c_del.button("DELETE", key=f"d{idx}", type="primary"):
                         delete_movie_from_db(idx)
                         st.rerun()
             st.divider()
