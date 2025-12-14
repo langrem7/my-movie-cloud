@@ -27,10 +27,30 @@ def inject_custom_css():
             20%, 24%, 55% { text-shadow: none; color: rgba(255,255,255,0.1); }
         }
 
-        /* 入场动画 */
+        /* 卡片常规入场动画 (刷新数据时用) */
         @keyframes slide-up {
             0% { opacity: 0; transform: translateY(20px); }
             100% { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* 🔥 新增：登录过场模糊动画 (只在登录瞬间用) */
+        @keyframes blur-enter-transition {
+            0% { 
+                filter: blur(15px); 
+                opacity: 0; 
+                transform: scale(1.02); /* 稍微放大一点，增加纵深感 */
+            }
+            100% { 
+                filter: blur(0px); 
+                opacity: 1; 
+                transform: scale(1);
+            }
+        }
+        
+        /* 应用于整个主界面的容器类 */
+        .transition-container {
+            /* 使用 ease-out 让结束时更平滑 */
+            animation: blur-enter-transition 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
 
         .neon-title {
@@ -61,7 +81,7 @@ def inject_custom_css():
             border: 1px solid rgba(255, 255, 255, 0.1);
             transition: transform 0.3s;
             margin-bottom: 20px;
-            /* 应用入场动画 */
+            /* 应用常规入场动画 */
             animation: slide-up 0.6s ease-out;
         }
         .movie-card:hover {
@@ -71,7 +91,6 @@ def inject_custom_css():
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
         
-        /* 针对输入框的美化 */
         input[type="number"] {
             font-weight: bold;
             color: #0fa;
@@ -160,10 +179,26 @@ def login_page():
         if st.button("LOGIN") or pwd == "123":
             if pwd == "123":
                 st.session_state['logged_in'] = True
+                # 🔥 关键修改：设置一个临时标记，表示“刚刚登录”
+                st.session_state['just_logged_in_transition'] = True
                 st.rerun()
 
 # --- 7. 主程序 ---
 def main_app():
+    # 检查是否需要播放过场动画
+    # 只有在刚登录跳转过来时，这个值才是 True
+    need_transition = st.session_state.get('just_logged_in_transition', False)
+
+    if need_transition:
+        # 如果需要过场，用一个 div 包裹住所有内容，并加上动画类
+        st.markdown('<div class="transition-container">', unsafe_allow_html=True)
+        # 🔥 重要：立即关闭标记，这样你在主界面进行其他操作（如添加电影）刷新时，就不会再播放这个强烈动画了
+        st.session_state['just_logged_in_transition'] = False
+    else:
+        # 如果不需要过场，就用一个普通的 div 包裹
+        st.markdown('<div>', unsafe_allow_html=True)
+
+    # --- 原有主程序内容开始 ---
     inject_custom_css()
     
     st.markdown("""
@@ -195,11 +230,7 @@ def main_app():
         with st.form("add"):
             t = st.text_input("片名")
             p = st.text_input("海报URL")
-            
-            # 🔥 更改点：使用 number_input 输入框
-            # min_value=0.0, max_value=10.0 限制范围
             r = st.number_input("评分 (0-10)", min_value=0.0, max_value=10.0, value=8.5, step=0.1)
-            
             tag = st.multiselect("类型", tags_options, default=["剧情"])
             rev = st.text_area("短评")
             
@@ -228,8 +259,6 @@ def main_app():
                 try: score = float(row['rating'])
                 except: score = 0.0
                 
-                # 🔥 关键修复点：unsafe_allow_html=True
-                # 如果这个参数没设为True，你看到的就是代码
                 st.markdown(f"""
                 <div class="movie-card">
                     <div class="neon-title" style="--neon-color: {this_neon_color};">
@@ -249,15 +278,12 @@ def main_app():
                         “{row['review']}”
                     </div>
                 </div>
-                """, unsafe_allow_html=True) # <--- 这里必须是 True
+                """, unsafe_allow_html=True)
                 
                 # 编辑区域
                 with st.expander(f"🛠 编辑: {row['title']}"):
                     n_rev = st.text_area("Update Review", row['review'], key=f"rv{idx}")
-                    
-                    # 编辑区域也改为输入框
                     n_rat = st.number_input("Update Score", 0.0, 10.0, score, step=0.1, key=f"sl{idx}")
-                    
                     curr_tags = str(row['tags']).split(',') if row['tags'] else []
                     curr_tags = [x.strip() for x in curr_tags if x.strip() in tags_options]
                     n_tags = st.multiselect("Tags", tags_options, default=curr_tags, key=f"tg{idx}")
@@ -267,4 +293,15 @@ def main_app():
                         update_movie_in_db(idx, n_rev, n_rat, ",".join(n_tags))
                         st.rerun()
                     if c_del.button("DELETE", key=f"d{idx}", type="primary"):
-                        delete_
+                        delete_movie_from_db(idx)
+                        st.rerun()
+            st.divider()
+    # --- 原有主程序内容结束 ---
+
+    # 🔥 关闭包裹的 div
+    st.markdown('</div>', unsafe_allow_html=True)
+
+if not st.session_state['logged_in']:
+    login_page()
+else:
+    main_app()
