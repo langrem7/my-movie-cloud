@@ -4,6 +4,7 @@ import pandas as pd
 import time
 import gspread
 import random
+import textwrap # <--- 关键引入：专门用来清除缩进
 from google.oauth2.service_account import Credentials
 
 # --- 1. 🧠 智能网络配置 ---
@@ -18,7 +19,6 @@ def inject_custom_css():
     <style>
         :root { --neon-color: #0fa; }
         
-        /* 霓虹灯标题动画 */
         @keyframes neon-flicker {
             0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
                 text-shadow: 0 0 4px #fff, 0 0 10px #fff, 0 0 20px var(--neon-color), 0 0 40px var(--neon-color);
@@ -27,7 +27,6 @@ def inject_custom_css():
             20%, 24%, 55% { text-shadow: none; color: rgba(255,255,255,0.1); }
         }
 
-        /* 登录过场模糊动画 */
         @keyframes blur-enter-transition {
             0% { filter: blur(15px); opacity: 0; transform: scale(1.02); }
             100% { filter: blur(0px); opacity: 1; transform: scale(1); }
@@ -37,7 +36,6 @@ def inject_custom_css():
             animation: blur-enter-transition 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
 
-        /* 卡片常规入场动画 */
         @keyframes slide-up {
             0% { opacity: 0; transform: translateY(20px); }
             100% { opacity: 1; transform: translateY(0); }
@@ -173,10 +171,8 @@ def login_page():
 
 # --- 7. 主程序 ---
 def main_app():
-    # 检测是否需要播放过场动画
     need_transition = st.session_state.get('just_logged_in_transition', False)
     
-    # 动画容器开始
     if need_transition:
         st.markdown('<div class="transition-container">', unsafe_allow_html=True)
         st.session_state['just_logged_in_transition'] = False
@@ -214,7 +210,6 @@ def main_app():
         with st.form("add"):
             t = st.text_input("片名")
             p = st.text_input("海报URL")
-            # 确认：使用数字输入
             r = st.number_input("评分 (0.0-10.0)", min_value=0.0, max_value=10.0, value=8.5, step=0.1)
             tag = st.multiselect("类型", tags_options, default=["剧情"])
             rev = st.text_area("短评")
@@ -244,30 +239,30 @@ def main_app():
                 try: score = float(row['rating'])
                 except: score = 0.0
                 
-                # 🔥 终极修复：把 HTML 先存进变量，再渲染
-                # 这样可以防止 Python 的括号嵌套混乱导致参数失效
-                card_html = f"""
-                <div class="movie-card">
-                    <div class="neon-title" style="--neon-color: {this_neon_color};">
-                        {row['title']}
-                    </div>
-                    
-                    <div style="display: flex; align-items: baseline; margin: 10px 0;">
-                        <span class="score-badge">{score}</span>
-                        <span class="score-suffix">/ 10</span>
-                    </div>
+                # 🔥 终极修复：使用 textwrap.dedent 清除缩进
+                # 这会告诉 Python：忽略代码前面的所有空格，顶格处理
+                # 这样 Streamlit 就不会把它当成代码块显示了
+                card_html = textwrap.dedent(f"""
+                    <div class="movie-card">
+                        <div class="neon-title" style="--neon-color: {this_neon_color};">
+                            {row['title']}
+                        </div>
+                        
+                        <div style="display: flex; align-items: baseline; margin: 10px 0;">
+                            <span class="score-badge">{score}</span>
+                            <span class="score-suffix">/ 10</span>
+                        </div>
 
-                    <div style="color:#aaa; font-size:0.8em; margin-bottom: 8px;">
-                        📅 {row['created_at']} | 🏷️ {row['tags']}
-                    </div>
+                        <div style="color:#aaa; font-size:0.8em; margin-bottom: 8px;">
+                            📅 {row['created_at']} | 🏷️ {row['tags']}
+                        </div>
 
-                    <div style="background:rgba(0,0,0,0.3); padding:10px; border-radius:10px; border-left: 3px solid {this_neon_color}; color: #ddd;">
-                        “{row['review']}”
+                        <div style="background:rgba(0,0,0,0.3); padding:10px; border-radius:10px; border-left: 3px solid {this_neon_color}; color: #ddd;">
+                            “{row['review']}”
+                        </div>
                     </div>
-                </div>
-                """
+                """)
                 
-                # 单独执行渲染，确保 unsafe_allow_html 生效
                 st.markdown(card_html, unsafe_allow_html=True)
                 
                 # 编辑区域
@@ -287,7 +282,6 @@ def main_app():
                         st.rerun()
             st.divider()
 
-    # 动画容器结束
     st.markdown('</div>', unsafe_allow_html=True)
 
 if not st.session_state['logged_in']:
