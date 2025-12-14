@@ -5,12 +5,6 @@ import time
 import gspread
 from google.oauth2.service_account import Credentials
 
-# --- 1. 强制代理设置 (必须放在最前面) ---
-# ⚠️ 请根据你的 VPN 实际端口修改下面的数字 (7890 或 7897)
-PROXY_PORT = "7897"
-os.environ["http_proxy"] = f"http://127.0.0.1:{PROXY_PORT}"
-os.environ["https_proxy"] = f"http://127.0.0.1:{PROXY_PORT}"
-
 # --- 2. 核心配置 ---
 # 这里直接用你的表格 ID，比用 URL 更稳
 SPREADSHEET_ID = "1wLR_VyaIIRf438hYOjSk5pOJAcAEPNBlwTgSdgCz6Hw"
